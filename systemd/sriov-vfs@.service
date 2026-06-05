@@ -1,0 +1,19 @@
+[Unit]
+Description=Create Mellanox SR-IOV VFs on %i (switchdev + per-VF MAC)
+# The eswitch representors created here are enslaved into a vlan-aware bridge
+# in /etc/network/interfaces, so this must finish before networking is brought
+# up. No pve-* dependency -- it does not call pvesh.
+Before=network-pre.target network-online.target
+Wants=network-pre.target
+# Pull in the matching mapping sync for this PF, so enabling this one unit is
+# enough. Wants= is co-activation only; the mapping unit still runs late, at its
+# own After=pve-cluster.service ordering -- not next to this early unit.
+Wants=sriov-vf-mappings@%i.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/opt/schlarpc/bin/create-sriov-vfs %i
+
+[Install]
+WantedBy=multi-user.target

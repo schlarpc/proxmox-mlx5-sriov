@@ -26,15 +26,14 @@ stdenvNoCC.mkDerivation {
     # payload
     install -Dm755 bin/create-sriov-vfs       "$root/opt/schlarpc/bin/create-sriov-vfs"
     install -Dm755 bin/sync-sriov-vf-mappings "$root/opt/schlarpc/bin/sync-sriov-vf-mappings"
-    install -Dm644 systemd/sriov-vfs.service          "$root/lib/systemd/system/sriov-vfs.service"
-    install -Dm644 systemd/sriov-vf-mappings.service  "$root/lib/systemd/system/sriov-vf-mappings.service"
-    install -Dm644 etc/default/sriov-vfs      "$root/etc/default/sriov-vfs"
+    install -Dm644 systemd/sriov-vfs@.service         "$root/lib/systemd/system/sriov-vfs@.service"
+    install -Dm644 systemd/sriov-vf-mappings@.service "$root/lib/systemd/system/sriov-vf-mappings@.service"
+    # Drop-in directory for optional per-PF overrides (admin-created, not shipped).
+    install -d "$root/etc/default/sriov-vfs.d"
 
     # control metadata
     install -Dm644 debian/control   "$root/DEBIAN/control"
-    install -Dm644 debian/conffiles "$root/DEBIAN/conffiles"
     install -Dm755 debian/postinst  "$root/DEBIAN/postinst"
-    install -Dm755 debian/prerm     "$root/DEBIAN/prerm"
     install -Dm755 debian/postrm    "$root/DEBIAN/postrm"
 
     substituteInPlace "$root/DEBIAN/control" --replace-fail '@VERSION@' '${version}'

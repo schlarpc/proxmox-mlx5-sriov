@@ -8,8 +8,10 @@ Depends: pve-manager, iproute2, ethtool
 Description: Mellanox SR-IOV VF provisioning for Proxmox VE
  Creates SR-IOV virtual functions on a Mellanox ConnectX NIC (switchdev mode
  with deterministic per-VF MACs) and registers them as Proxmox PCI resource
- mappings. The work is split across two correctly-ordered systemd units so the
- VF/representor setup runs before networking while the pvesh mapping sync runs
- after pmxcfs is available.
+ mappings. The work is split across two correctly-ordered systemd template
+ units so the VF/representor setup runs before networking while the pvesh
+ mapping sync runs after pmxcfs is available.
  .
- Configuration lives in /etc/default/sriov-vfs.
+ Per-PF instances are enabled as sriov-vfs@<interface>.service. Configuration is
+ optional: the PF comes from the instance name, the VF count and MAC prefix are
+ derived, and per-PF overrides may be dropped in /etc/default/sriov-vfs.d/.

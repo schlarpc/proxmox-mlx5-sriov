@@ -1,11 +1,13 @@
 #!/usr/bin/env bash
 #
-# Sync Proxmox PCI resource mappings (sriov-<iface>-vfN) for the SR-IOV VFs.
+# Sync Proxmox PCI resource mappings (sriov-<pf>-vfN) for the SR-IOV VFs of the
+# PF named by $1.
 #
-# This is the "late" half of the setup: it talks to pmxcfs via pvesh, so it
-# must run after pve-cluster.service is up. It is split out from
-# create-sriov-vfs precisely because that one runs before networking, whereas
-# pve-cluster is ordered After=network.target.
+# Driven by the template unit sriov-vf-mappings@<pf-interface>.service. This is
+# the "late" half of the setup: it talks to pmxcfs via pvesh, so it must run
+# after pve-cluster.service is up. It is split out from create-sriov-vfs
+# precisely because that one runs before networking, whereas pve-cluster is
+# ordered After=network.target.
 #
 # Idempotent: updates a mapping in place if it already exists, creates it
 # otherwise. Safe to run repeatedly and against a live node -- it never leaves
@@ -13,13 +15,11 @@
 
 set -euo pipefail
 
-# Host configuration (dpkg conffile).
-[ -r /etc/default/sriov-vfs ] && . /etc/default/sriov-vfs
-: "${PF_INTERFACE:?set PF_INTERFACE in /etc/default/sriov-vfs}"
+pf="${1:?usage: ${0##*/} <pf-interface>}"
 
-mapping_prefix="sriov-$PF_INTERFACE-"
+mapping_prefix="sriov-$pf-"
 node="$(hostname)"
-dev_path="/sys/class/net/$PF_INTERFACE/device"
+dev_path="/sys/class/net/$pf/device"
 
 # Authoritative VF count = however many VFs actually exist right now, not a
 # configured number (keeps this in lockstep with what create-sriov-vfs made).

@@ -5,15 +5,10 @@ if [ "$1" = configure ]; then
 	if [ -d /run/systemd/system ]; then
 		systemctl --system daemon-reload >/dev/null 2>&1 || true
 	fi
-	# Enable for next boot. Deliberately NOT started now: these are boot-time
-	# provisioning units, and re-running VF creation under live guests is
-	# undesirable. They take effect on the next reboot.
-	if command -v deb-systemd-helper >/dev/null 2>&1; then
-		deb-systemd-helper enable sriov-vfs.service >/dev/null 2>&1 || true
-		deb-systemd-helper enable sriov-vf-mappings.service >/dev/null 2>&1 || true
-	else
-		systemctl enable sriov-vfs.service sriov-vf-mappings.service >/dev/null 2>&1 || true
-	fi
+	# These are template units, so nothing is auto-enabled: the package cannot
+	# know which PF(s) you provision. Enable one unit per PF; the matching
+	# mapping sync is pulled in automatically:
+	#   systemctl enable sriov-vfs@enp33s0f0np0.service
 fi
 
 exit 0
