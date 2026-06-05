@@ -22,6 +22,7 @@ pf="${1:?usage: ${0##*/} <pf-interface>}"
 
 # Optional per-PF overrides (VF_COUNT, VF_MAC_PREFIX). Absent file is fine.
 if [ -r "/etc/default/sriov-vfs.d/$pf" ]; then
+	# shellcheck source=/dev/null
 	. "/etc/default/sriov-vfs.d/$pf"
 fi
 
