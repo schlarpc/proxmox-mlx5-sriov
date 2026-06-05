@@ -8,7 +8,7 @@ if [ "$1" = configure ]; then
 	# These are template units, so nothing is auto-enabled: the package cannot
 	# know which PF(s) you provision. Enable one unit per PF; the matching
 	# mapping sync is pulled in automatically:
-	#   systemctl enable sriov-vfs@enp33s0f0np0.service
+	#   systemctl enable mlx5-sriov-vfs@enp33s0f0np0.service
 fi
 
 exit 0

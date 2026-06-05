@@ -8,12 +8,12 @@ Wants=network-pre.target
 # Pull in the matching mapping sync for this PF, so enabling this one unit is
 # enough. Wants= is co-activation only; the mapping unit still runs late, at its
 # own After=pve-cluster.service ordering -- not next to this early unit.
-Wants=sriov-vf-mappings@%i.service
+Wants=mlx5-sriov-mappings@%i.service
 
 [Service]
 Type=oneshot
 RemainAfterExit=yes
-ExecStart=/opt/schlarpc/bin/create-sriov-vfs %i
+ExecStart=/usr/sbin/mlx5-sriov-create-vfs %i
 
 [Install]
 WantedBy=multi-user.target

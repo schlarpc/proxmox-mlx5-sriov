@@ -6,7 +6,7 @@
 }:
 
 stdenvNoCC.mkDerivation {
-  pname = "sriov-vfs-deb";
+  pname = "proxmox-mlx5-sriov-deb";
   inherit version;
 
   src = ./.;
@@ -24,12 +24,12 @@ stdenvNoCC.mkDerivation {
     root="$NIX_BUILD_TOP/pkgroot"
 
     # payload
-    install -Dm755 bin/create-sriov-vfs       "$root/opt/schlarpc/bin/create-sriov-vfs"
-    install -Dm755 bin/sync-sriov-vf-mappings "$root/opt/schlarpc/bin/sync-sriov-vf-mappings"
-    install -Dm644 systemd/sriov-vfs@.service         "$root/lib/systemd/system/sriov-vfs@.service"
-    install -Dm644 systemd/sriov-vf-mappings@.service "$root/lib/systemd/system/sriov-vf-mappings@.service"
+    install -Dm755 bin/mlx5-sriov-create-vfs   "$root/usr/sbin/mlx5-sriov-create-vfs"
+    install -Dm755 bin/mlx5-sriov-sync-mappings "$root/usr/sbin/mlx5-sriov-sync-mappings"
+    install -Dm644 systemd/mlx5-sriov-vfs@.service      "$root/lib/systemd/system/mlx5-sriov-vfs@.service"
+    install -Dm644 systemd/mlx5-sriov-mappings@.service "$root/lib/systemd/system/mlx5-sriov-mappings@.service"
     # Drop-in directory for optional per-PF overrides (admin-created, not shipped).
-    install -d "$root/etc/default/sriov-vfs.d"
+    install -d "$root/etc/default/mlx5-sriov.d"
 
     # control metadata
     install -Dm644 debian/control   "$root/DEBIAN/control"
@@ -46,7 +46,7 @@ stdenvNoCC.mkDerivation {
     mkdir -p "$out"
     # SOURCE_DATE_EPOCH (exported by stdenv) makes dpkg-deb output reproducible.
     dpkg-deb --root-owner-group --build "$NIX_BUILD_TOP/pkgroot" \
-      "$out/sriov-vfs_${version}_all.deb"
+      "$out/proxmox-mlx5-sriov_${version}_all.deb"
     runHook postInstall
   '';
 

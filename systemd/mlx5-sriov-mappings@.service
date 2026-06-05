@@ -1,0 +1,18 @@
+[Unit]
+Description=Sync Proxmox PCI resource mappings for SR-IOV VFs on %i
+# Needs the VFs on this PF to exist (mlx5-sriov-vfs@%i) AND pmxcfs to be mounted
+# (pve-cluster.service, ordered After=network.target). Must finish before
+# guests that reference the mappings are started.
+Requires=mlx5-sriov-vfs@%i.service
+After=mlx5-sriov-vfs@%i.service pve-cluster.service
+Wants=pve-cluster.service
+Before=pve-guests.service
+
+[Service]
+Type=oneshot
+RemainAfterExit=yes
+ExecStart=/usr/sbin/mlx5-sriov-sync-mappings %i
+
+# No [Install] section: this is pulled in by mlx5-sriov-vfs@%i.service (Wants=),
+# so you enable only that one. `systemctl enable mlx5-sriov-mappings@<pf>` is
+# neither needed nor possible.

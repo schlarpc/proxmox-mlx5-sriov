@@ -1,4 +1,4 @@
-Package: sriov-vfs
+Package: proxmox-mlx5-sriov
 Version: @VERSION@
 Section: admin
 Priority: optional
@@ -12,6 +12,7 @@ Description: Mellanox SR-IOV VF provisioning for Proxmox VE
  units so the VF/representor setup runs before networking while the pvesh
  mapping sync runs after pmxcfs is available.
  .
- Per-PF instances are enabled as sriov-vfs@<interface>.service. Configuration is
- optional: the PF comes from the instance name, the VF count and MAC prefix are
- derived, and per-PF overrides may be dropped in /etc/default/sriov-vfs.d/.
+ Per-PF instances are enabled as mlx5-sriov-vfs@<interface>.service.
+ Configuration is optional: the PF comes from the instance name, the VF count
+ and MAC prefix are derived, and per-PF overrides may be dropped in
+ /etc/default/mlx5-sriov.d/.
