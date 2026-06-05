@@ -1,0 +1,15 @@
+# OPTIONAL / reliability hardening -- NOT auto-deployed.
+#
+# Give the ConnectX VF representors stable, self-describing names derived from
+# hardware (phys_port_name: pf0vf0 .. pf0vf31) instead of the unstable kernel
+# eth0..eth31 names your bridge currently pins. The kernel ethN order is not
+# guaranteed across kernel upgrades or added NICs, so a renumber could silently
+# drop a representor out of the bridge and black-hole a VM's uplink.
+#
+# After installing this you MUST update bridge-ports in /etc/network/interfaces
+# to match (see ../network/interfaces.snippet) and reboot in a maintenance
+# window. Do these two together or the bridge loses ports.
+
+SUBSYSTEM=="net", ACTION=="add", DRIVERS=="mlx5_core", \
+    ATTR{phys_switch_id}=="?*", ATTR{phys_port_name}=="pf?vf*", \
+    NAME="$attr{phys_port_name}"

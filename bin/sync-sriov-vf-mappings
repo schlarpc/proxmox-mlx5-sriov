@@ -1,0 +1,44 @@
+#!/usr/bin/env bash
+#
+# Sync Proxmox PCI resource mappings (sriov-<dev>-vfN) for the SR-IOV VFs.
+#
+# This is the "late" half of the setup: it talks to pmxcfs via pvesh, so it
+# must run after pve-cluster.service is up. It is split out from
+# create-sriov-vfs precisely because that one runs before networking, whereas
+# pve-cluster is ordered After=network.target.
+#
+# Idempotent: updates a mapping in place if it already exists, creates it
+# otherwise. Safe to run repeatedly and against a live node -- it never leaves
+# a mapping deleted, so a guest that (re)starts mid-run still finds its VF.
+
+set -euo pipefail
+
+# Host configuration (dpkg conffile).
+[ -r /etc/default/sriov-vfs ] && . /etc/default/sriov-vfs
+: "${DEVICE:?set DEVICE in /etc/default/sriov-vfs}"
+: "${NUM_VFS:?set NUM_VFS in /etc/default/sriov-vfs}"
+
+MAPPING_PREFIX="sriov-$DEVICE-"
+NODE="$(hostname)"
+dev_path="/sys/class/net/$DEVICE/device"
+
+for ((i = 0; i < NUM_VFS; i++)); do
+	slot="" pci_id="" subsys=""
+	while IFS='=' read -r key val; do
+		case "$key" in
+			PCI_SLOT_NAME) slot="$val" ;;
+			PCI_ID)        pci_id="${val,,}" ;;
+			PCI_SUBSYS_ID) subsys="${val,,}" ;;
+		esac
+	done < "$dev_path/virtfn$i/uevent"
+
+	group="$(basename "$(readlink -f "$dev_path/virtfn$i/iommu_group")")"
+	id="${MAPPING_PREFIX}vf$i"
+	map="node=$NODE,path=$slot,id=$pci_id,subsystem-id=$subsys,iommugroup=$group"
+
+	if pvesh get "/cluster/mapping/pci/$id" --output-format json >/dev/null 2>&1; then
+		pvesh set    "/cluster/mapping/pci/$id" --map "$map"
+	else
+		pvesh create /cluster/mapping/pci --id "$id" --map "$map"
+	fi
+done

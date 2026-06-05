@@ -1,0 +1,50 @@
+#!/usr/bin/env bash
+#
+# Create SR-IOV virtual functions on the Mellanox ConnectX-6 Dx and give each
+# one a deterministic, locally-administered MAC address.
+#
+# This is the "early" half of the setup. It MUST run before the network is
+# brought up, because switchdev mode produces one representor netdev per VF and
+# those representors are enslaved into the vlan-aware bridge in
+# /etc/network/interfaces. The Proxmox resource-mapping half lives in
+# sync-sriov-vf-mappings and runs later, after pmxcfs (pve-cluster.service) is
+# mounted -- the two cannot share a systemd unit because pve-cluster is ordered
+# After=network.target while this must run before networking.
+#
+# refs:
+#   https://enterprise-support.nvidia.com/s/article/HowTo-Configure-SR-IOV-for-ConnectX-4-ConnectX-5-ConnectX-6-with-KVM-Ethernet
+#   https://shawnliu.me/post/configuring-sr-iov-for-mellanox-adapters/
+
+set -euo pipefail
+
+# Host configuration (dpkg conffile).
+[ -r /etc/default/sriov-vfs ] && . /etc/default/sriov-vfs
+: "${DEVICE:?set DEVICE in /etc/default/sriov-vfs}"
+: "${PF_PCI:?set PF_PCI in /etc/default/sriov-vfs}"
+: "${NUM_VFS:?set NUM_VFS in /etc/default/sriov-vfs}"
+: "${MAC_PREFIX:?set MAC_PREFIX in /etc/default/sriov-vfs}"
+
+dev_path="/sys/class/net/$DEVICE/device"
+
+# Put the embedded eswitch into switchdev mode (gives us offloadable per-VF
+# representors), then re-create the VFs from a clean slate.
+devlink dev eswitch set "pci/$PF_PCI" mode switchdev
+echo 0          > "$dev_path/sriov_numvfs"
+echo "$NUM_VFS" > "$dev_path/sriov_numvfs"
+
+for ((i = 0; i < NUM_VFS; i++)); do
+	# Final octet = VF index. Fine while NUM_VFS <= 256.
+	mac="$(printf '%s:%02x' "$MAC_PREFIX" "$i")"
+
+	# Read the VF's PCI slot from its uevent (single read, no cat|grep).
+	slot=""
+	while IFS='=' read -r key val; do
+		if [ "$key" = PCI_SLOT_NAME ]; then slot="$val"; fi
+	done < "$dev_path/virtfn$i/uevent"
+
+	# In switchdev mode the administrative VF MAC only takes effect across a
+	# driver rebind of that VF.
+	echo "$slot" > /sys/bus/pci/drivers/mlx5_core/unbind
+	ip link set "$DEVICE" vf "$i" mac "$mac"
+	echo "$slot" > /sys/bus/pci/drivers/mlx5_core/bind
+done

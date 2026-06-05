@@ -1,0 +1,7 @@
+# OPTIONAL -- only if you install udev/70-mlx5-vf-representors.rules.
+#
+# Replace the eth0..eth31 entries in your existing vmbr bridge-ports line with
+# the stable representor names. Numeric order, easy to eyeball that all 32 are
+# present. The PF (enp33s0f0np0) stays as the uplink port.
+
+    bridge-ports enp33s0f0np0 pf0vf0 pf0vf1 pf0vf2 pf0vf3 pf0vf4 pf0vf5 pf0vf6 pf0vf7 pf0vf8 pf0vf9 pf0vf10 pf0vf11 pf0vf12 pf0vf13 pf0vf14 pf0vf15 pf0vf16 pf0vf17 pf0vf18 pf0vf19 pf0vf20 pf0vf21 pf0vf22 pf0vf23 pf0vf24 pf0vf25 pf0vf26 pf0vf27 pf0vf28 pf0vf29 pf0vf30 pf0vf31

@@ -1,0 +1,13 @@
+# Configuration for sriov-vfs(.service) and sriov-vf-mappings(.service).
+# This is a dpkg conffile: your edits here are preserved across package upgrades.
+
+# PF network interface and its PCI address.
+DEVICE="enp33s0f0np0"
+PF_PCI="0000:21:00.0"
+
+# Number of VFs to create.
+NUM_VFS="32"
+
+# First five octets of each VF MAC; the VF index becomes the sixth octet.
+# 0x36 is locally-administered + unicast.
+MAC_PREFIX="36:7e:3a:0b:0b"

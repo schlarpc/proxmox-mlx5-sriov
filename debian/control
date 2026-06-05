@@ -1,0 +1,15 @@
+Package: sriov-vfs
+Version: @VERSION@
+Section: admin
+Priority: optional
+Architecture: all
+Maintainer: schlarpc <schlarpc@gmail.com>
+Depends: pve-manager, iproute2
+Description: Mellanox SR-IOV VF provisioning for Proxmox VE
+ Creates SR-IOV virtual functions on a Mellanox ConnectX NIC (switchdev mode
+ with deterministic per-VF MACs) and registers them as Proxmox PCI resource
+ mappings. The work is split across two correctly-ordered systemd units so the
+ VF/representor setup runs before networking while the pvesh mapping sync runs
+ after pmxcfs is available.
+ .
+ Configuration lives in /etc/default/sriov-vfs.
