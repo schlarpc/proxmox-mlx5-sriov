@@ -55,9 +55,20 @@ network/interfaces.snippet      OPTIONAL: matching bridge-ports line
 
 ## Configuration
 
-All host-specific values live in `/etc/default/sriov-vfs` (`DEVICE`, `PF_PCI`,
-`NUM_VFS`, `MAC_PREFIX`). Both scripts source it. It is a dpkg conffile, so your
-edits survive package upgrades and dpkg will prompt before overwriting them.
+Host config lives in `/etc/default/sriov-vfs` (a dpkg conffile, so your edits
+survive upgrades). Both scripts source it. Only one value is required:
+
+| Variable        | Required | Default if unset                                            |
+| --------------- | -------- | ----------------------------------------------------------- |
+| `PF_INTERFACE`  | yes      | --  (the PF's PCI address is derived from it)                |
+| `VF_COUNT`      | no       | `min(32, sriov_totalvfs)`; validated against the hw ceiling |
+| `VF_MAC_PREFIX` | no       | locally-administered prefix hashed from the PF permanent MAC |
+
+The derived `VF_MAC_PREFIX` is stable per host and unique across hosts (the full
+PF MAC is hashed, so cards with sequential factory MACs don't collide on the
+prefix) -- which is what makes the package's default safe to install on multiple
+nodes unedited. Set it explicitly if you coordinate MACs with DHCP reservations
+or switch port-security. `create-sriov-vfs` logs the values it ends up using.
 
 ## Build the .deb
 

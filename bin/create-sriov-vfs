@@ -17,24 +17,53 @@
 
 set -euo pipefail
 
-# Host configuration (dpkg conffile).
+# Host configuration (dpkg conffile). PF_INTERFACE is the only required value.
 [ -r /etc/default/sriov-vfs ] && . /etc/default/sriov-vfs
-: "${DEVICE:?set DEVICE in /etc/default/sriov-vfs}"
-: "${PF_PCI:?set PF_PCI in /etc/default/sriov-vfs}"
-: "${NUM_VFS:?set NUM_VFS in /etc/default/sriov-vfs}"
-: "${MAC_PREFIX:?set MAC_PREFIX in /etc/default/sriov-vfs}"
+: "${PF_INTERFACE:?set PF_INTERFACE in /etc/default/sriov-vfs}"
 
-dev_path="/sys/class/net/$DEVICE/device"
+dev_path="/sys/class/net/$PF_INTERFACE/device"
 
-# Put the embedded eswitch into switchdev mode (gives us offloadable per-VF
-# representors), then re-create the VFs from a clean slate.
-devlink dev eswitch set "pci/$PF_PCI" mode switchdev
-echo 0          > "$dev_path/sriov_numvfs"
-echo "$NUM_VFS" > "$dev_path/sriov_numvfs"
+# PCI address of the PF, derived from the interface (no need to configure it).
+pf_pci="$(basename "$(readlink -f "$dev_path")")"
 
-for ((i = 0; i < NUM_VFS; i++)); do
-	# Final octet = VF index. Fine while NUM_VFS <= 256.
-	mac="$(printf '%s:%02x' "$MAC_PREFIX" "$i")"
+# VF count: default to a modest value capped to the hardware maximum, and
+# validate any explicit value against the ceiling and the MAC scheme.
+total_vfs="$(cat "$dev_path/sriov_totalvfs")"
+: "${VF_COUNT:=$(( total_vfs < 32 ? total_vfs : 32 ))}"
+if [ "$VF_COUNT" -gt "$total_vfs" ]; then
+	echo "VF_COUNT=$VF_COUNT exceeds hardware maximum ($total_vfs)" >&2
+	exit 1
+fi
+if [ "$VF_COUNT" -gt 256 ]; then
+	echo "VF_COUNT=$VF_COUNT > 256: the VF index is the final MAC octet" >&2
+	exit 1
+fi
+
+# VF MAC prefix: if not configured, derive a stable locally-administered
+# 5-octet prefix from the PF's permanent MAC. Hash the whole MAC so cards with
+# sequential factory MACs don't collide on the prefix; this makes the package's
+# default safe to install on multiple nodes without minting duplicate VF MACs.
+if [ -z "${VF_MAC_PREFIX:-}" ]; then
+	pf_mac="$(ethtool -P "$PF_INTERFACE" 2>/dev/null | awk '{print $NF}')"
+	case "$pf_mac" in
+		"" | 00:00:00:00:00:00) pf_mac="$(cat "/sys/class/net/$PF_INTERFACE/address")" ;;
+	esac
+	h="$(printf '%s' "$pf_mac" | sha256sum)"
+	o0=$(( (0x${h:0:2} & 0xFE) | 0x02 ))   # clear multicast, set locally-administered
+	VF_MAC_PREFIX="$(printf '%02x:%s:%s:%s:%s' "$o0" "${h:2:2}" "${h:4:2}" "${h:6:2}" "${h:8:2}")"
+	echo "derived VF_MAC_PREFIX=$VF_MAC_PREFIX from PF $PF_INTERFACE ($pf_mac)"
+fi
+
+echo "creating $VF_COUNT VFs on $PF_INTERFACE ($pf_pci), MAC prefix $VF_MAC_PREFIX"
+
+# Put the embedded eswitch into switchdev mode, then re-create the VFs.
+devlink dev eswitch set "pci/$pf_pci" mode switchdev
+echo 0           > "$dev_path/sriov_numvfs"
+echo "$VF_COUNT" > "$dev_path/sriov_numvfs"
+
+for ((i = 0; i < VF_COUNT; i++)); do
+	# Final octet = VF index.
+	mac="$(printf '%s:%02x' "$VF_MAC_PREFIX" "$i")"
 
 	# Read the VF's PCI slot from its uevent (single read, no cat|grep).
 	slot=""
@@ -45,6 +74,6 @@ for ((i = 0; i < NUM_VFS; i++)); do
 	# In switchdev mode the administrative VF MAC only takes effect across a
 	# driver rebind of that VF.
 	echo "$slot" > /sys/bus/pci/drivers/mlx5_core/unbind
-	ip link set "$DEVICE" vf "$i" mac "$mac"
+	ip link set "$PF_INTERFACE" vf "$i" mac "$mac"
 	echo "$slot" > /sys/bus/pci/drivers/mlx5_core/bind
 done

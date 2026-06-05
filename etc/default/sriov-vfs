@@ -1,13 +1,18 @@
 # Configuration for sriov-vfs(.service) and sriov-vf-mappings(.service).
 # This is a dpkg conffile: your edits here are preserved across package upgrades.
 
-# PF network interface and its PCI address.
-DEVICE="enp33s0f0np0"
-PF_PCI="0000:21:00.0"
+# Physical-function network interface (required). Its PCI address is derived
+# from this automatically.
+PF_INTERFACE="enp33s0f0np0"
 
-# Number of VFs to create.
-NUM_VFS="32"
+# Number of VFs to create. If unset, defaults to min(32, hardware maximum) and
+# is validated against the card's sriov_totalvfs. Must be <= 256, because the
+# VF index becomes the final MAC octet.
+#VF_COUNT="32"
 
 # First five octets of each VF MAC; the VF index becomes the sixth octet.
-# 0x36 is locally-administered + unicast.
-MAC_PREFIX="36:7e:3a:0b:0b"
+# If unset, a stable locally-administered prefix is derived by hashing the PF's
+# permanent MAC -- unique per host, so installing this package on multiple nodes
+# does not produce colliding VF MACs. Set explicitly if you coordinate MACs with
+# DHCP reservations or switch port-security.
+#VF_MAC_PREFIX="36:7e:3a:0b:0b"
