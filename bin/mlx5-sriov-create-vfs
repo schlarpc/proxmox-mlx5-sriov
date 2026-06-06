@@ -49,7 +49,9 @@ fi
 # sequential factory MACs don't collide on the prefix; derivation is per-PF, so
 # multiple PFs/cards get distinct prefixes automatically.
 if [ -z "${VF_MAC_PREFIX:-}" ]; then
-	pf_mac="$(ethtool -P "$pf" 2>/dev/null | awk '{print $NF}')"
+	# "Permanent address: aa:bb:..."; take the last field, "" if no output.
+	pf_mac="$(ethtool -P "$pf" 2>/dev/null)"
+	pf_mac="${pf_mac##* }"
 	case "$pf_mac" in
 		"" | 00:00:00:00:00:00) pf_mac="$(cat "/sys/class/net/$pf/address")" ;;
 	esac

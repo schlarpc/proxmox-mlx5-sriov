@@ -18,7 +18,7 @@ set -euo pipefail
 pf="${1:?usage: ${0##*/} <pf-interface>}"
 
 mapping_prefix="sriov-$pf-"
-node="$(hostname)"
+node="$(uname -n)"
 dev_path="/sys/class/net/$pf/device"
 
 # Authoritative VF count = however many VFs actually exist right now, not a
