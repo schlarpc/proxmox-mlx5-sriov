@@ -120,13 +120,22 @@ mappings.
 Kernel representor names (`eth0..eth31`) aren't stable across kernel upgrades or
 added NICs, so a renumber can silently drop a representor out of the bridge. The
 package ships a udev rule (`/lib/udev/rules.d/70-mlx5-vf-representors.rules`) that
-gives them stable, hardware-derived names (`pf0vf0..pf0vf31`) instead.
+gives them stable names derived from hardware instead.
+
+The mlx5 driver's own `phys_port_name` (`pf0vf0..`) is unique only *within* one
+eswitch, so two separate cards both start at `pf0` and collide. The rule prefixes
+a short slice of `phys_switch_id` (the per-card eswitch id) via the
+`mlx5-sriov-rep-name` helper, producing `sw<tag>pf<port>vf<N>` — e.g.
+`swc27cpf0vf31`. That's stable across reboots/kernel upgrades, distinguishes
+ports within a card (`pf0`/`pf1`), and stays unique across multiple cards, all
+inside the 15-char interface-name limit.
 
 The rename applies on the next boot when the VFs are re-created — never live, so
 it can't yank a representor out from under a running bridge. The one thing the
 package **can't** do is edit `/etc/network/interfaces` (out of scope), so your
-`bridge-ports` line must reference the `pf0vfN` names. A bundled example is at
-`/usr/share/doc/proxmox-mlx5-sriov/examples/interfaces.snippet`.
+`bridge-ports` line must reference these names. A bundled example is at
+`/usr/share/doc/proxmox-mlx5-sriov/examples/interfaces.snippet`; after a reboot,
+`ip -d link` shows the actual names the rule produced.
 
 > **Migrating an existing node** whose bridge still pins `eth0..eth31`: update
 > that `bridge-ports` line to `pf0vfN` *before* the next reboot, or the bridge

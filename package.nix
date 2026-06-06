@@ -28,10 +28,11 @@ stdenvNoCC.mkDerivation {
     install -Dm755 bin/mlx5-sriov-sync-mappings "$root/usr/sbin/mlx5-sriov-sync-mappings"
     install -Dm644 systemd/mlx5-sriov-vfs@.service      "$root/lib/systemd/system/mlx5-sriov-vfs@.service"
     install -Dm644 systemd/mlx5-sriov-mappings@.service "$root/lib/systemd/system/mlx5-sriov-mappings@.service"
-    # Stable, hardware-derived representor names (pf0vf0..) applied at next boot
-    # when the VFs are (re-)created. Package-owned rule, so it lives in /lib;
-    # /etc/udev/rules.d/ is left for admin overrides.
+    # Stable, card-unique representor names (sw<tag>pf0vf0..) applied at next boot
+    # when the VFs are (re-)created. Package-owned, so both the rule and its
+    # naming helper live in /lib; /etc/udev/rules.d/ is left for admin overrides.
     install -Dm644 udev/70-mlx5-vf-representors.rules "$root/lib/udev/rules.d/70-mlx5-vf-representors.rules"
+    install -Dm755 udev/mlx5-sriov-rep-name           "$root/lib/udev/mlx5-sriov-rep-name"
     # Drop-in directory for optional per-PF overrides (admin-created, not shipped).
     install -d "$root/etc/default/mlx5-sriov.d"
 

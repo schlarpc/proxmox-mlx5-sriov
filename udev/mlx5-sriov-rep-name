@@ -1,0 +1,26 @@
+#!/bin/sh
+# Emit a stable, card-unique name for an mlx5 VF representor. Driven from
+# udev/70-mlx5-vf-representors.rules:
+#   PROGRAM="/lib/udev/mlx5-sriov-rep-name $attr{phys_switch_id} $attr{phys_port_name}"
+#   NAME="%c"
+#
+# phys_port_name (pfXvfY) is unique only *within* one eswitch, so two separate
+# cards both start at pf0 and their representors would collide on a flat name.
+# phys_switch_id is the per-eswitch hardware id -- burned in, stable across
+# reboots, kernel upgrades and added NICs. Prefixing a short slice of it keeps
+# the name unique across cards while staying inside the 15-char IFNAMSIZ limit:
+#
+#   de6bafd91555c27c + pf0vf31  ->  swc27cpf0vf31   (13 chars)
+#
+# It still encodes the port within a card (pf0 vs pf1), so a dual-port card in a
+# shared eswitch stays unambiguous too.
+set -eu
+
+swid="${1:?usage: ${0##*/} <phys_switch_id> <phys_port_name>}"
+ppn="${2:?usage: ${0##*/} <phys_switch_id> <phys_port_name>}"
+
+# Last 4 hex chars of the switch id: 16 bits, plenty to keep a handful of cards
+# distinct without overflowing the name length.
+tag="${swid#"${swid%????}"}"
+
+printf 'sw%s%s\n' "$tag" "$ppn"
