@@ -1,0 +1,67 @@
+name: release
+
+# Cut a GitHub Release with the freshly-built .deb for every commit landed on
+# main. The package version is derived from the commit id by the flake itself
+# (see flake.nix: version = "1.0.0+g<shortRev>"), so the artifact, its internal
+# Debian Version field, and the release all point back to one commit.
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+# Needed to create releases / upload assets with the built-in GITHUB_TOKEN.
+permissions:
+  contents: write
+
+# One in-flight release build per ref; a newer push supersedes an older one.
+concurrency:
+  group: release-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  release:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      # Determinate Systems Nix installer: flakes + nix-command on by default.
+      - uses: DeterminateSystems/nix-installer-action@main
+
+      - name: Build the .deb
+        run: nix build .#deb -L
+
+      - name: Locate the artifact
+        id: deb
+        run: |
+          set -euo pipefail
+          # `result` is a symlink into the read-only store; copy the .deb out so
+          # gh uploads a plain file with a sensible name.
+          src=$(readlink -f result)/*.deb
+          mkdir -p dist
+          cp $src dist/
+          path=$(ls dist/*.deb)
+          {
+            echo "path=$path"
+            echo "name=$(basename "$path")"
+            echo "sha=$(git rev-parse --short HEAD)"
+          } >> "$GITHUB_OUTPUT"
+
+      - name: Publish release
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          set -euo pipefail
+          tag="build-${{ steps.deb.outputs.sha }}"
+          notes="Automated build of ${{ github.sha }}.
+
+          Package: \`${{ steps.deb.outputs.name }}\`
+          Install: \`apt install ./${{ steps.deb.outputs.name }}\`"
+          # Create the release, or (on a re-run of the same commit) refresh its asset.
+          if gh release view "$tag" >/dev/null 2>&1; then
+            gh release upload "$tag" "${{ steps.deb.outputs.path }}" --clobber
+          else
+            gh release create "$tag" "${{ steps.deb.outputs.path }}" \
+              --target "${{ github.sha }}" \
+              --title "${{ steps.deb.outputs.name }}" \
+              --notes "$notes"
+          fi

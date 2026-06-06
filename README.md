@@ -134,6 +134,29 @@ bit-for-bit identical across machines (`nix build .#deb --rebuild` verifies it).
 The package is `Architecture: all`. `nix develop` gives a shell with `dpkg` +
 `shellcheck`.
 
+## Releases
+
+`.github/workflows/release.yml` cuts a GitHub Release for every commit pushed to
+`main` (and on manual `workflow_dispatch`). It installs Nix via the Determinate
+Systems [`nix-installer-action`](https://github.com/DeterminateSystems/nix-installer-action),
+runs `nix build .#deb`, and uploads the resulting `.deb` to a release tagged
+`build-<shortsha>` targeting that commit.
+
+The version is tied to the commit by the flake itself: `flake.nix` sets
+`version = "1.0.0+${self.lastModifiedDate}.g${self.shortRev}"`, so the artifact
+filename, the package's internal `Version:` field, and the release tag all trace
+back to one commit (`proxmox-mlx5-sriov_1.0.0+20260606093355.gdeadbee_all.deb`).
+The commit *date* leads (not the bare hash) so that `dpkg`/`apt` version
+comparison stays monotonic -- a later commit always sorts as newer, so
+`apt upgrade` works; a bare hash sorts arbitrarily and apt would treat half of
+all upgrades as downgrades. The short rev is the tiebreaker and the link back to
+source. A dirty local tree builds as `+...gdirty`. Bump `baseVersion` in
+`flake.nix` to move off `1.0.0`.
+
+Re-running the workflow on the same commit refreshes that release's asset rather
+than failing. No secrets are needed -- it uses the built-in `GITHUB_TOKEN`
+(`contents: write`).
+
 ## Install on the node
 
 ```bash
