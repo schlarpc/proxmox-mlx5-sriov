@@ -1,14 +1,18 @@
-# OPTIONAL / reliability hardening -- NOT auto-deployed.
+# Stable, hardware-derived representor names. Shipped active by the package
+# (installed to /lib/udev/rules.d/).
 #
 # Give the ConnectX VF representors stable, self-describing names derived from
 # hardware (phys_port_name: pf0vf0 .. pf0vf31) instead of the unstable kernel
-# eth0..eth31 names your bridge currently pins. The kernel ethN order is not
-# guaranteed across kernel upgrades or added NICs, so a renumber could silently
-# drop a representor out of the bridge and black-hole a VM's uplink.
+# eth0..eth31 names. The kernel ethN order is not guaranteed across kernel
+# upgrades or added NICs, so a renumber could silently drop a representor out of
+# the bridge and black-hole a VM's uplink; the hardware-derived names are stable.
 #
-# After installing this you MUST update bridge-ports in /etc/network/interfaces
-# to match (see ../network/interfaces.snippet) and reboot in a maintenance
-# window. Do these two together or the bridge loses ports.
+# The rename applies on the next boot, when the VFs are (re-)created -- not live,
+# so it never renames a representor out from under a running bridge. Your
+# bridge-ports in /etc/network/interfaces MUST reference these pf0vfN names (see
+# the bundled examples/interfaces.snippet); the package does not manage that
+# file. On an existing node whose bridge still pins eth0..eth31, update that line
+# before the next reboot or the bridge comes up with no VF ports.
 
 SUBSYSTEM=="net", ACTION=="add", DRIVERS=="mlx5_core", \
     ATTR{phys_switch_id}=="?*", ATTR{phys_port_name}=="pf?vf*", \

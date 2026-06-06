@@ -115,17 +115,23 @@ than under live guests. To validate the mapping half without rebooting once VFs
 exist: `systemctl start mlx5-sriov-mappings@<pf>` (idempotent), then check the
 mappings.
 
-## Optional: stable representor names
+## Representor names
 
-Kernel representor names (`eth0..eth31`) are unstable. To make them
-hardware-derived (`pf0vf0..pf0vf31`):
+Kernel representor names (`eth0..eth31`) aren't stable across kernel upgrades or
+added NICs, so a renumber can silently drop a representor out of the bridge. The
+package ships a udev rule (`/lib/udev/rules.d/70-mlx5-vf-representors.rules`) that
+gives them stable, hardware-derived names (`pf0vf0..pf0vf31`) instead.
 
-1. `install -m644 udev/70-mlx5-vf-representors.rules /etc/udev/rules.d/`
-2. Edit `/etc/network/interfaces` `bridge-ports` to match `network/interfaces.snippet`.
-3. Reboot in a maintenance window (both changes must land together).
+The rename applies on the next boot when the VFs are re-created — never live, so
+it can't yank a representor out from under a running bridge. The one thing the
+package **can't** do is edit `/etc/network/interfaces` (out of scope), so your
+`bridge-ports` line must reference the `pf0vfN` names. A bundled example is at
+`/usr/share/doc/proxmox-mlx5-sriov/examples/interfaces.snippet`.
 
-Not shipped in the `.deb`: enabling it would rename representors on the next boot
-and break the bridge unless the interfaces change lands at the same time.
+> **Migrating an existing node** whose bridge still pins `eth0..eth31`: update
+> that `bridge-ports` line to `pf0vfN` *before* the next reboot, or the bridge
+> comes up with no VF ports. On a fresh node, just write it with `pf0vfN` from
+> the start.
 
 ## Rollback
 
