@@ -7,7 +7,7 @@
 # upgrades or added NICs, so a renumber could silently drop a representor out of
 # the bridge and black-hole a VM's uplink; the hardware-derived names are stable.
 #
-# The name is sw<tag><phys_port_name> (e.g. swc27cpf0vf31), where <tag> is a
+# The name is sw<tag><phys_port_name> (e.g. sw1234pf0vf31), where <tag> is a
 # short slice of phys_switch_id -- the per-card eswitch id -- so representors stay
 # unique even across multiple separate cards (a flat pfXvfY collides because each
 # card restarts PF numbering at pf0). mlx5-sriov-rep-name builds the name; see it

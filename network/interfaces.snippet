@@ -2,11 +2,10 @@
 # bridge must reference them (the package does not edit /etc/network/interfaces).
 #
 # Names are sw<tag>pf<port>vf<N>, where <tag> is the last 4 hex of the card's
-# phys_switch_id. The values below are for the reference card (phys_switch_id
-# de6bafd91555c27c -> tag c27c, port 0). On other hardware the tag/port differ;
-# after a reboot, `ip -d link` shows the actual names the rule produced.
+# phys_switch_id (the 1234 below is a placeholder -- yours differs). After a
+# reboot, `ip -d link` shows the actual names the rule produced.
 #
 # Numeric order, easy to eyeball that all 32 are present. The PF (enp33s0f0np0)
 # stays as the uplink port. Adjust the count/PF to your hardware.
 
-    bridge-ports enp33s0f0np0 swc27cpf0vf0 swc27cpf0vf1 swc27cpf0vf2 swc27cpf0vf3 swc27cpf0vf4 swc27cpf0vf5 swc27cpf0vf6 swc27cpf0vf7 swc27cpf0vf8 swc27cpf0vf9 swc27cpf0vf10 swc27cpf0vf11 swc27cpf0vf12 swc27cpf0vf13 swc27cpf0vf14 swc27cpf0vf15 swc27cpf0vf16 swc27cpf0vf17 swc27cpf0vf18 swc27cpf0vf19 swc27cpf0vf20 swc27cpf0vf21 swc27cpf0vf22 swc27cpf0vf23 swc27cpf0vf24 swc27cpf0vf25 swc27cpf0vf26 swc27cpf0vf27 swc27cpf0vf28 swc27cpf0vf29 swc27cpf0vf30 swc27cpf0vf31
+    bridge-ports enp33s0f0np0 sw1234pf0vf0 sw1234pf0vf1 sw1234pf0vf2 sw1234pf0vf3 sw1234pf0vf4 sw1234pf0vf5 sw1234pf0vf6 sw1234pf0vf7 sw1234pf0vf8 sw1234pf0vf9 sw1234pf0vf10 sw1234pf0vf11 sw1234pf0vf12 sw1234pf0vf13 sw1234pf0vf14 sw1234pf0vf15 sw1234pf0vf16 sw1234pf0vf17 sw1234pf0vf18 sw1234pf0vf19 sw1234pf0vf20 sw1234pf0vf21 sw1234pf0vf22 sw1234pf0vf23 sw1234pf0vf24 sw1234pf0vf25 sw1234pf0vf26 sw1234pf0vf27 sw1234pf0vf28 sw1234pf0vf29 sw1234pf0vf30 sw1234pf0vf31

@@ -10,7 +10,7 @@
 # reboots, kernel upgrades and added NICs. Prefixing a short slice of it keeps
 # the name unique across cards while staying inside the 15-char IFNAMSIZ limit:
 #
-#   de6bafd91555c27c + pf0vf31  ->  swc27cpf0vf31   (13 chars)
+#   aabbccddeeff1234 + pf0vf31  ->  sw1234pf0vf31   (13 chars)
 #
 # It still encodes the port within a card (pf0 vs pf1), so a dual-port card in a
 # shared eswitch stays unambiguous too.
