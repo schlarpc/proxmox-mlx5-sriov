@@ -84,3 +84,12 @@ for ((i = 0; i < VF_COUNT; i++)); do
 	ip link set "$pf" vf "$i" mac "$mac"
 	echo "$slot" > /sys/bus/pci/drivers/mlx5_core/bind
 done
+
+# Creating the VFs above emits udev 'add' events for the representor netdevs,
+# and 70-mlx5-vf-representors.rules renames them (eth* -> sw<tag>pfNvfM) on those
+# events -- asynchronously. This unit runs Before=network-pre.target, so without
+# a barrier the bridge can come up and try to enslave representors by their
+# stable names before the rename has landed, leaving the bridge with no VF ports.
+# Drain the udev queue so the renames are done before we report success. Bounded
+# and non-fatal: a settle timeout must not fail VF provisioning or block boot.
+udevadm settle --timeout=30 || true
