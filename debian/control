@@ -4,7 +4,7 @@ Section: admin
 Priority: optional
 Architecture: all
 Maintainer: schlarpc <schlarpc@gmail.com>
-Depends: pve-manager, iproute2, ethtool
+Depends: pve-manager (>= 8.0.0), iproute2, ethtool
 Description: Mellanox SR-IOV VF provisioning for Proxmox VE
  Creates SR-IOV virtual functions on a Mellanox ConnectX NIC (switchdev mode
  with deterministic per-VF MACs) and registers them as Proxmox PCI resource

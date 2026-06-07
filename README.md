@@ -8,6 +8,17 @@ hardware-offloaded eswitch representors bridged into a `vmbr`.
 PF-agnostic — one systemd template instance per PF. Tested on a ConnectX-6 Dx
 (`enp33s0f0np0`, `0000:21:00.0`).
 
+## Prerequisites
+
+- **Proxmox VE 8.0+.** The mapping sync uses the `/cluster/mapping/pci` API and
+  `hostpci: mapping=`, both introduced in PVE 8.0 (enforced via the package
+  dependency on `pve-manager (>= 8.0.0)`).
+- **IOMMU enabled.** PCI passthrough — and a usable resource mapping — needs the
+  IOMMU on: `intel_iommu=on` (or `amd_iommu=on`) plus `iommu=pt` on the kernel
+  command line, then reboot. `mlx5-sriov-sync-mappings` refuses to run without a
+  VF IOMMU group rather than registering an unusable mapping.
+- **A switchdev-capable mlx5 NIC** (ConnectX-4 or newer).
+
 ## Scope and assumptions
 
 Shaped around one topology: **switchdev-mode VFs as vlan-aware trunk ports behind

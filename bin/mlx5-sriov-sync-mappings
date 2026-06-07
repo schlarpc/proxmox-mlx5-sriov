@@ -35,6 +35,14 @@ for ((i = 0; i < vf_count; i++)); do
 		esac
 	done < "$dev_path/virtfn$i/uevent"
 
+	# A PCI resource mapping is only usable for passthrough if the device has an
+	# IOMMU group. Without IOMMU the symlink is absent and `readlink -f` would
+	# happily return a bogus path, silently writing iommugroup=iommu_group -- so
+	# fail loudly with the fix instead.
+	if [ ! -e "$dev_path/virtfn$i/iommu_group" ]; then
+		echo "$pf VF $i has no IOMMU group; enable IOMMU (intel_iommu=on or amd_iommu=on, plus iommu=pt) and reboot" >&2
+		exit 1
+	fi
 	group="$(basename "$(readlink -f "$dev_path/virtfn$i/iommu_group")")"
 	id="${mapping_prefix}vf$i"
 	map="node=$node,path=$slot,id=$pci_id,subsystem-id=$subsys,iommugroup=$group"
