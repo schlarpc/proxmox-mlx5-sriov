@@ -45,22 +45,27 @@ the host keeping hardware-offloaded switching control.** What that commits you t
 - **mlx5-only**, and it **re-creates VFs every boot** (assumes exclusive ownership
   of the PF's SR-IOV config).
 
-## How it works
+## Install
 
-Two template units per PF, because the two halves have incompatible ordering
-needs that can't live in one unit:
+Grab a `.deb` from the [Releases](#releases) page (every push to `main` publishes
+one), or [build](#build) it. Copy to the node and install:
 
-- **`mlx5-sriov-vfs@<pf>.service`** → `mlx5-sriov-create-vfs <pf>`: switchdev +
-  VFs + per-VF MACs. Runs `Before=network-pre.target` (representors must exist
-  before the bridge comes up). No PVE dependency.
-- **`mlx5-sriov-mappings@<pf>.service`** → `mlx5-sriov-sync-mappings <pf>`: the
-  `pvesh` resource-mapping sync. Needs pmxcfs, so it runs `After=pve-cluster.service`
-  (itself `After=network.target`) and `Before=pve-guests.service`.
+```bash
+scp proxmox-mlx5-sriov_*_all.deb root@proxmox:/tmp/
+ssh root@proxmox 'apt install -y /tmp/proxmox-mlx5-sriov_*_all.deb'
+```
 
-You enable only the VFs unit; it `Wants=` the mapping instance, which is pulled in
-and still runs at its own late ordering. One PF = one `systemctl enable`. Multiple
-PFs = multiple independent instances (per-PF mapping IDs and MAC prefixes never
-collide).
+Nothing auto-enables (template units have no implicit instance). Enable one unit
+per PF — the mapping sync comes along automatically:
+
+```bash
+systemctl enable mlx5-sriov-vfs@enp33s0f0np0.service
+```
+
+These are boot-time provisioning units; let them run on the next reboot rather
+than under live guests. To validate the mapping half without rebooting once VFs
+exist: `systemctl start mlx5-sriov-mappings@<pf>` (idempotent), then check the
+mappings.
 
 ## Configuration (optional)
 
@@ -84,52 +89,6 @@ VF_MAC_PREFIX="02:00:00:ab:cd"
 
 Pin `VF_MAC_PREFIX` only if you coordinate MACs with DHCP reservations or switch
 port-security; the derived one is stable per host and unique across hosts.
-
-## Build
-
-```bash
-nix build .#deb
-ls result/        # -> proxmox-mlx5-sriov_<version>_all.deb
-```
-
-Hermetic and reproducible: `dpkg-deb` runs in the derivation, ownership forced to
-`root:root`, and `SOURCE_DATE_EPOCH` clamps timestamps so output is bit-for-bit
-identical (`nix build .#deb --rebuild` verifies). `Architecture: all`.
-`nix develop` gives a shell with `dpkg` + `shellcheck`.
-
-## Releases
-
-Every push to `main` (and manual `workflow_dispatch`) runs
-`.github/workflows/release.yml`: it installs Nix via the Determinate Systems
-[`nix-installer-action`](https://github.com/DeterminateSystems/nix-installer-action),
-builds the `.deb`, and uploads it to a GitHub Release tagged `build-<shortsha>`.
-Re-running on the same commit refreshes the asset; no secrets needed (built-in
-`GITHUB_TOKEN`, `contents: write`).
-
-The version is derived from the commit in `flake.nix`:
-`1.0.0+<commitdate>.g<shortrev>` (e.g. `…_1.0.0+20260606093355.gdeadbee_all.deb`).
-The date leads so `dpkg`/`apt` ordering stays monotonic — a bare hash sorts
-arbitrarily and `apt` would treat half of all upgrades as downgrades. Bump
-`baseVersion` in `flake.nix` to move off `1.0.0`.
-
-## Install
-
-```bash
-scp result/proxmox-mlx5-sriov_*_all.deb root@proxmox:/tmp/
-ssh root@proxmox 'apt install -y /tmp/proxmox-mlx5-sriov_*_all.deb'
-```
-
-Nothing auto-enables (template units have no implicit instance). Enable one unit
-per PF — the mapping sync comes along automatically:
-
-```bash
-systemctl enable mlx5-sriov-vfs@enp33s0f0np0.service
-```
-
-These are boot-time provisioning units; let them run on the next reboot rather
-than under live guests. To validate the mapping half without rebooting once VFs
-exist: `systemctl start mlx5-sriov-mappings@<pf>` (idempotent), then check the
-mappings.
 
 ## Representor names
 
@@ -175,3 +134,47 @@ return a NIC to a clean state:
 devlink dev eswitch set pci/<addr> mode legacy
 echo 0 > /sys/class/net/<pf>/device/sriov_numvfs
 ```
+
+## How it works
+
+Two template units per PF, because the two halves have incompatible ordering
+needs that can't live in one unit:
+
+- **`mlx5-sriov-vfs@<pf>.service`** → `mlx5-sriov-create-vfs <pf>`: switchdev +
+  VFs + per-VF MACs. Runs `Before=network-pre.target` (representors must exist
+  before the bridge comes up). No PVE dependency.
+- **`mlx5-sriov-mappings@<pf>.service`** → `mlx5-sriov-sync-mappings <pf>`: the
+  `pvesh` resource-mapping sync. Needs pmxcfs, so it runs `After=pve-cluster.service`
+  (itself `After=network.target`) and `Before=pve-guests.service`.
+
+You enable only the VFs unit; it `Wants=` the mapping instance, which is pulled in
+and still runs at its own late ordering. One PF = one `systemctl enable`. Multiple
+PFs = multiple independent instances (per-PF mapping IDs and MAC prefixes never
+collide).
+
+## Build
+
+```bash
+nix build .#deb
+ls result/        # -> proxmox-mlx5-sriov_<version>_all.deb
+```
+
+Hermetic and reproducible: `dpkg-deb` runs in the derivation, ownership forced to
+`root:root`, and `SOURCE_DATE_EPOCH` clamps timestamps so output is bit-for-bit
+identical (`nix build .#deb --rebuild` verifies). `Architecture: all`.
+`nix develop` gives a shell with `dpkg` + `shellcheck`.
+
+## Releases
+
+Every push to `main` (and manual `workflow_dispatch`) runs
+`.github/workflows/release.yml`: it installs Nix via the Determinate Systems
+[`nix-installer-action`](https://github.com/DeterminateSystems/nix-installer-action),
+builds the `.deb`, and uploads it to a GitHub Release tagged `build-<shortsha>`.
+Re-running on the same commit refreshes the asset; no secrets needed (built-in
+`GITHUB_TOKEN`, `contents: write`).
+
+The version is derived from the commit in `flake.nix`:
+`1.0.0+<commitdate>.g<shortrev>` (e.g. `…_1.0.0+20260606093355.gdeadbee_all.deb`).
+The date leads so `dpkg`/`apt` ordering stays monotonic — a bare hash sorts
+arbitrarily and `apt` would treat half of all upgrades as downgrades. Bump
+`baseVersion` in `flake.nix` to move off `1.0.0`.
