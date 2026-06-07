@@ -28,11 +28,18 @@ others:
 - **switchdev mode is forced** — per-VF representors you can bridge and offload.
   Legacy mode (VFs straight on the wire, no representors) is not supported.
 - **Every VF is a trunk** — no per-VF VLAN is set; VLAN filtering happens in the
-  vlan-aware bridge (full `2-4094` trunk per representor) and the guest tags.
-- **VFs keep locked-down defaults** (`spoofchk on`, `trust off`) with a forced
-  deterministic admin MAC. No `trust`/`spoofchk`/rate-limit knobs, so guests that
-  emit multiple MACs or tag their own VLANs (routers, firewalls, nested virt)
-  won't work as-is.
+  vlan-aware bridge (full `2-4094` trunk per representor) and the guest tags. That
+  trunk is bridge config *you* write (`bridge-vlan-aware yes` + `bridge-vids`) —
+  the bundled `interfaces.snippet` shows only the `bridge-ports` line, not the VID
+  range.
+- **Each VF gets a forced deterministic admin MAC; nothing else is tuned.** The
+  package sets the VF MAC and leaves `spoofchk`/`trust`/rate-limits at driver
+  defaults — on a current mlx5 switchdev stack both `spoofchk` and `trust` are
+  *off* (forwarding and anti-spoof are the eswitch's and the vlan-aware bridge's
+  job here, not the legacy per-VF knobs). The practical limit is `trust off`: a
+  VF can't go promiscuous or register extra MAC filters, so guests that must
+  receive traffic for MACs other than their assigned one (nested virt, MACVLAN,
+  some bridging firewalls) need `trust on`, which this doesn't configure.
 - **The representor bridge is out of scope.** A switchdev VF has no path to the
   wire until its representor is enslaved in a bridge. This package provisions
   VFs/MACs/mappings but does **not** touch `/etc/network/interfaces` — you build
