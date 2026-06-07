@@ -94,7 +94,7 @@ Override the last two per-PF by dropping a shell snippet at
 ```sh
 # /etc/default/mlx5-sriov.d/enp33s0f0np0
 VF_COUNT="16"
-VF_MAC_PREFIX="36:7e:3a:0b:0b"
+VF_MAC_PREFIX="02:00:00:ab:cd"
 ```
 
 Pin `VF_MAC_PREFIX` only if you coordinate MACs with DHCP reservations or switch
