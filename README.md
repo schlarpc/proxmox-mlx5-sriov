@@ -174,6 +174,42 @@ doesn't write `/etc/network/interfaces` (see *You build the bridge* above), your
 > of `cat /sys/class/net/<pf>/phys_switch_id`, so you can write the names ahead of
 > time; on a fresh node, just use them from the start.
 
+## Locking a VF to a VLAN
+
+By default every representor is a full `2-4094` trunk and the guest tags (above).
+To pin one VF to a single access VLAN you change **its representor's bridge
+port**, not the VF — and there's **no Proxmox GUI field** for it (a bridge
+member port is just `type: eth, method: manual` in the API; the per-VM "VLAN
+Tag" only applies to virtio/tap NICs, never a passed-through VF). So it's a
+`/etc/network/interfaces` edit, applied with `ifreload -a`. Two clean ways:
+
+```sh
+# (a) add the option directly to the representor's stanza in the main file
+iface swc27cpf0vf16
+    bridge-access 2070
+
+# (b) or keep your VLAN policy out of the PVE-managed file entirely, in a
+#     /etc/network/interfaces.d/ overlay (sourced by default on PVE):
+#     /etc/network/interfaces.d/sriov-vlans
+iface swc27cpf0vf16
+    bridge-access 2070
+```
+
+Both are safe and supported:
+
+- PVE **preserves** a hand-added `bridge-access` across GUI network edits (it
+  round-trips options it doesn't model), so (a) won't get clobbered.
+- Multiple `iface` stanzas for one device combine at bring-up — *"all of the
+  configured addresses and options for that interface will be applied"*
+  (`interfaces(5)`) — so the (b) overlay's `bridge-access` applies on top of
+  PVE's base `iface … inet manual`. Removing the overlay and `ifreload`-ing
+  cleanly restores the trunk.
+
+In switchdev mode this VLAN filtering is offloaded into the eswitch, so the
+lockdown is hardware-enforced at line rate. (Don't set the *same* option to
+conflicting values across stanzas — that's the one combination whose result
+isn't well-defined.)
+
 ## Rollback
 
 `apt remove proxmox-mlx5-sriov` (after `systemctl disable` of the instances). To
