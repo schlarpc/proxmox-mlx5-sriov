@@ -21,17 +21,24 @@ PF-agnostic — one systemd template instance per PF. Tested on a ConnectX-6 Dx
 
 ## Scope and assumptions
 
-Shaped around one topology: **switchdev-mode VFs as vlan-aware trunk ports behind
-a hardware-offloaded bridge**. Deliberate choices, correct for that and wrong for
-others:
+Shaped around one topology: **switchdev VFs trunked into a Proxmox vlan-aware
+bridge, with the host keeping hardware-offloaded switching control**. The
+deliberate choices behind that — worth understanding before you adopt:
 
-- **switchdev mode is forced** — per-VF representors you can bridge and offload.
-  Legacy mode (VFs straight on the wire, no representors) is not supported.
-- **Every VF is a trunk** — no per-VF VLAN is set; VLAN filtering happens in the
-  vlan-aware bridge (full `2-4094` trunk per representor) and the guest tags. That
-  trunk is bridge config *you* write (`bridge-vlan-aware yes` + `bridge-vids`) —
-  the bundled `interfaces.snippet` shows only the `bridge-ports` line, not the VID
-  range.
+- **switchdev is the point, not a limitation.** It gives the *host* a control
+  plane over every VF (one representor each) while the NIC's embedded switch does
+  the forwarding in hardware — host-side VLAN/bridge/ACL control at line rate,
+  dropping straight into Proxmox's vlan-aware bridge model. If you instead just
+  want a VF handed to a guest with no host switching (optionally pinned to a VLAN
+  via the legacy `ip link set vf vlan` knob), that's **legacy-mode SR-IOV** — a
+  simpler, different tool, not this one.
+- **Every VF is a dumb trunk pipe; VLAN policy lives on the bridge.** No per-VF
+  VLAN is set — each representor joins the vlan-aware bridge as a full `2-4094`
+  trunk and the guest tags. To pin a VF to one VLAN, set `bridge-access <vid>` on
+  *its representor's* bridge port (not on the VF); mlx5 offloads that filtering
+  into the eswitch, so it's hardware-enforced at line rate. The trunk model is
+  thus permissive by default: every VF can reach every VLAN until you lock its
+  port down.
 - **Each VF gets a forced deterministic admin MAC; nothing else is tuned.** The
   package sets the VF MAC and leaves `spoofchk`/`trust`/rate-limits at driver
   defaults — on a current mlx5 switchdev stack both `spoofchk` and `trust` are
@@ -40,10 +47,16 @@ others:
   VF can't go promiscuous or register extra MAC filters, so guests that must
   receive traffic for MACs other than their assigned one (nested virt, MACVLAN,
   some bridging firewalls) need `trust on`, which this doesn't configure.
-- **The representor bridge is out of scope.** A switchdev VF has no path to the
-  wire until its representor is enslaved in a bridge. This package provisions
-  VFs/MACs/mappings but does **not** touch `/etc/network/interfaces` — you build
-  the vlan-aware bridge yourself.
+- **You build the bridge — and not because Proxmox "owns the file."** A switchdev
+  VF has no path to the wire until its representor is enslaved in a bridge, yet
+  the package doesn't write one. The reason isn't hands-off-Proxmox (it already
+  registers PCI mappings through PVE's own API): it automates what it can
+  *derive* and apply *non-disruptively* — VFs, stable representor names, mappings.
+  The bridge is the opposite. Its management IP, which `vmbr` each VF joins, and
+  each port's VLAN policy are un-derivable site decisions, and rewriting the
+  bridge that carries the node's management IP is far higher blast-radius than an
+  inert mapping. So `interfaces.snippet` is a *starting point* — `bridge-ports`
+  only, no IP / VIDs / per-port policy.
 - **mlx5-only**, and it **re-creates VFs from scratch on every boot** (assumes
   exclusive ownership of the PF's SR-IOV config).
 
@@ -149,16 +162,17 @@ ports within a card (`pf0`/`pf1`), and stays unique across multiple cards, all
 inside the 15-char interface-name limit.
 
 The rename applies on the next boot when the VFs are re-created — never live, so
-it can't yank a representor out from under a running bridge. The one thing the
-package **can't** do is edit `/etc/network/interfaces` (out of scope), so your
+it can't yank a representor out from under a running bridge. Since the package
+doesn't write `/etc/network/interfaces` (see *You build the bridge* above), your
 `bridge-ports` line must reference these names. A bundled example is at
 `/usr/share/doc/proxmox-mlx5-sriov/examples/interfaces.snippet`; after a reboot,
 `ip -d link` shows the actual names the rule produced.
 
-> **Migrating an existing node** whose bridge still pins `eth0..eth31`: update
-> that `bridge-ports` line to `pf0vfN` *before* the next reboot, or the bridge
-> comes up with no VF ports. On a fresh node, just write it with `pf0vfN` from
-> the start.
+> **Migrating an existing node** whose bridge still pins `eth0..eth31`: switch
+> that `bridge-ports` line to the new `sw<tag>pf<port>vfN` names *before* the next
+> reboot, or the bridge comes up with no VF ports. The `<tag>` is the last 4 hex
+> of `cat /sys/class/net/<pf>/phys_switch_id`, so you can write the names ahead of
+> time; on a fresh node, just use them from the start.
 
 ## Rollback
 
